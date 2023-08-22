@@ -65,8 +65,8 @@ all: main-build
 main-build: f746gdisco_dcc.elf secondary-outputs
 
 # Tool invocations
-f746gdisco_dcc.elf f746gdisco_dcc.map: $(OBJS) $(USER_OBJS) /Sw/Stm32_1.13.1/f746gdisco_dcc/STM32F746NGHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "f746gdisco_dcc.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/Sw/Stm32_1.13.1/f746gdisco_dcc/STM32F746NGHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f746gdisco_dcc.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+f746gdisco_dcc.elf f746gdisco_dcc.map: $(OBJS) $(USER_OBJS) /Devel/Stm32_13.1/f746gdisco_dcc/STM32F746NGHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "f746gdisco_dcc.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/Devel/Stm32_13.1/f746gdisco_dcc/STM32F746NGHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f746gdisco_dcc.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

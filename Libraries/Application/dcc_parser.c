@@ -115,7 +115,7 @@ uint8_t	ret_val = 0;
 	{
 	case 1 :	ret_val = one_byte_commands(cmd);
 				break;
-	case 4 :	ret_val = four_bytes_commands(cmd,p0,p1,dir);
+	case 4 :	ret_val = four_bytes_commands(cmd,p0,p1,dir); // <T 95 12 F>
 				break;
 	default:	sprintf((char *)System.uart1_txbuf,"Command error %d\n\r",pnum);
 				ret_val = 1;
