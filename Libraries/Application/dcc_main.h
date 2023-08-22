@@ -46,12 +46,12 @@ extern	SDRAM_HandleTypeDef hsdram1;
 #define	DCC_DATA_LEN			8
 #define	DCC_ECC_LEN				8
 #define	DCC_PKT_LEN				(DCC_PREAMBLE_LEN+1+DCC_ADDRESS_LEN+1+DCC_DATA_LEN+1+DCC_ECC_LEN+1)
-#define	PULSE100uS				100
-#define	PULSE58uS				58
-#define	PULSE2000uS				2000
+#define	PULSE100uS				99
+#define	PULSE58uS				57
+#define	PULSE200uS				200
 #define	DCC_0					PULSE100uS
 #define	DCC_1					PULSE58uS
-#define	DCC_TERM				PULSE2000uS
+#define	DCC_TERM				PULSE200uS
 
 typedef struct {
 	uint16_t		preamble[16];
@@ -91,8 +91,8 @@ extern	System_TypeDef	System;
 /* system */
 #define	SYSTEM_DCC1_HALFDONE	0x80
 #define	SYSTEM_DCC2_HALFDONE	0x40
-#define	SYSTEM_DCC1_EVALPOINT	0x20
-#define	SYSTEM_DCC2_EVALPOINT	0x10
+#define	SYSTEM_DCC1_EXPIRED		0x20
+#define	SYSTEM_DCC2_EXPIRED		0x10
 #define	SYSTEM_DCC1_HPACKET		0x08
 #define	SYSTEM_DCC2_HPACKET		0x04
 #define	SYSTEM_DCC1_FPACKET		0x02
@@ -115,5 +115,8 @@ extern	System_TypeDef	System;
 
 extern	void dcc_init(void);
 extern	void dcc_loop(void);
+
+extern	HAL_StatusTypeDef dcc_HAL_TIM_PWM_Start_DMA(TIM_HandleTypeDef *htim, uint32_t Channel, const uint32_t *pData, uint16_t Length);
+
 
 #endif /* APPLICATION_DCC_MAIN_H_ */

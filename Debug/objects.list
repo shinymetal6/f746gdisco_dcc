@@ -51,6 +51,7 @@
 "./Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_ll_usb.o"
 "./Libraries/Application/dcc_main.o"
 "./Libraries/Application/dcc_parser.o"
+"./Libraries/Application/dcc_timpwm_functions.o"
 "./Libraries/Application/lcd.o"
 "./Libraries/BSP/Components/ft5336/ft5336.o"
 "./Libraries/BSP/Components/ov9655/ov9655.o"

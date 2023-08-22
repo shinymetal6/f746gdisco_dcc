@@ -123,7 +123,7 @@ void set_trig(uint8_t val )
 void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim)
 {
 	System.system |= SYSTEM_DCC1_HALFDONE;
-	System.system |= SYSTEM_DCC1_EVALPOINT;
+	System.system |= SYSTEM_DCC1_EXPIRED;
 
 	if ((System.system & SYSTEM_DCC1_HPACKET) == SYSTEM_DCC1_HPACKET)
 	{
@@ -134,7 +134,7 @@ void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim)
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
 	System.system &= ~SYSTEM_DCC1_HALFDONE;
-	System.system |= SYSTEM_DCC1_EVALPOINT;
+	System.system |= SYSTEM_DCC1_EXPIRED;
 
 	if ((System.system & SYSTEM_DCC1_FPACKET) == SYSTEM_DCC1_FPACKET)
 	{
@@ -144,12 +144,8 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 
 void init_dcc_pkt(void)
 {
-uint16_t	*idle = (uint16_t *)&DCC_Idle_Pkt;
-uint8_t	i;
-	for(i=0;i<DCC_PKT_LEN;i++)
-	{
-		System.dcc_ch1_packet[i] = System.dcc_ch1_packet[i+DCC_PKT_LEN] = idle[i];
-	}
+	memcpy(&System.dcc_ch1_packet,&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
+	memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
 }
 /*
  * change
@@ -157,7 +153,9 @@ uint8_t	i;
  * to
  *		if (HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_CC1], (uint32_t)pData, (uint32_t)&htim->Instance->PSC,Length) != HAL_OK)
  * in
- * 		stm32f7xx_hal_tim.c
+ * 		HAL_TIM_PWM_Start_DMA , stm32f7xx_hal_tim.c, line 1766
+ * or
+ * 		use provided dcc_HAL_TIM_PWM_Start_DMA
  *
  */
 void dcc_init(void)
@@ -169,9 +167,58 @@ void dcc_init(void)
 	HAL_TIM_Base_Start_IT(&TICK_TIMER);
 	HAL_UART_Receive_IT(&DCC_HOST, &System.uart1_rxchar, 1);
 	init_dcc_pkt();
-	HAL_TIM_PWM_Start_DMA(&DCC_CH1,TIM_CHANNEL_1,(uint32_t *)System.dcc_ch1_packet,DCC_PKT_LEN*NUM_DCC_PACKET );
+
+	dcc_HAL_TIM_PWM_Start_DMA(&DCC_CH1,TIM_CHANNEL_1,(uint32_t *)System.dcc_ch1_packet,DCC_PKT_LEN*NUM_DCC_PACKET );
 	BSP_LED_Init(LED_GREEN);
 }
+
+void dcc_process(void)
+{
+	if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER)
+		DCC_CH1.Instance->CR1 |= TIM_CR1_CEN;
+	else
+		DCC_CH1.Instance->CR1 &= ~TIM_CR1_CEN;
+	if ((System.dcc_flags & DCC_DCC2_POWER) == DCC_DCC2_POWER)
+		DCC_CH2.Instance->CR1 |= TIM_CR1_CEN;
+	else
+		DCC_CH2.Instance->CR1 &= ~TIM_CR1_CEN;
+
+	if ((System.system & SYSTEM_DCC1_EXPIRED) == SYSTEM_DCC1_EXPIRED)
+	{
+		System.system &= ~SYSTEM_DCC1_EXPIRED;
+		if ((System.dcc_flags & DCC_DCC1_PKTPEND) == DCC_DCC1_PKTPEND)
+		{
+			if ((System.system & SYSTEM_DCC1_HALFDONE) == SYSTEM_DCC1_HALFDONE)
+			{
+				memcpy(&System.dcc_ch1_packet,&DCC_Work_Pkt,DCC_PACKET_LEN*2);
+				System.system |= SYSTEM_DCC1_HPACKET;
+			}
+			else
+			{
+				memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Work_Pkt,DCC_PACKET_LEN*2);
+				System.system |= SYSTEM_DCC1_FPACKET;
+			}
+			set_trig(1);
+			System.dcc_flags &= ~DCC_DCC1_PKTPEND;
+		}
+	}
+	if ((System.dcc_flags & DCC_DCC1_TXDONE) == DCC_DCC1_TXDONE)
+	{
+		if ((System.system & SYSTEM_DCC1_HPACKET) == SYSTEM_DCC1_HPACKET)
+		{
+			memcpy(&System.dcc_ch1_packet,&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
+			System.system &= ~SYSTEM_DCC1_HPACKET;
+		}
+		if ((System.system & SYSTEM_DCC1_FPACKET) == SYSTEM_DCC1_FPACKET)
+		{
+			memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
+			System.system &= ~SYSTEM_DCC1_FPACKET;
+		}
+		set_trig(0);
+		System.dcc_flags &= ~DCC_DCC1_TXDONE;
+	}
+}
+
 
 uint8_t state = 0;
 void dcc_loop(void)
@@ -206,53 +253,5 @@ void dcc_loop(void)
 		System.uart1_flags &= ~UART1_BUF;
 		HAL_UART_Transmit_IT(&DCC_HOST, System.uart1_txbuf, System.uart1_txlen);
 	}
-
-	if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER)
-		DCC_CH1.Instance->CR1 |= TIM_CR1_CEN;
-	else
-		DCC_CH1.Instance->CR1 &= ~TIM_CR1_CEN;
-	if ((System.dcc_flags & DCC_DCC2_POWER) == DCC_DCC2_POWER)
-		DCC_CH2.Instance->CR1 |= TIM_CR1_CEN;
-	else
-		DCC_CH2.Instance->CR1 &= ~TIM_CR1_CEN;
-
-
-	if ((System.system & SYSTEM_DCC1_EVALPOINT) == SYSTEM_DCC1_EVALPOINT)
-	{
-		System.system &= ~SYSTEM_DCC1_EVALPOINT;
-		if ((System.dcc_flags & DCC_DCC1_PKTPEND) == DCC_DCC1_PKTPEND)
-		{
-			set_trig(1);
-			if ((System.system & SYSTEM_DCC1_HALFDONE) == SYSTEM_DCC1_HALFDONE)
-			{
-				System.system |= SYSTEM_DCC1_HPACKET;
-				memcpy(&System.dcc_ch1_packet,&DCC_Work_Pkt,DCC_PACKET_LEN);
-				memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Idle_Pkt,DCC_PACKET_LEN);
-			}
-			else
-			{
-				System.system |= SYSTEM_DCC1_FPACKET;
-				memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Work_Pkt,DCC_PACKET_LEN);
-				memcpy(&System.dcc_ch1_packet,&DCC_Idle_Pkt,DCC_PACKET_LEN);
-			}
-			System.dcc_flags &= ~DCC_DCC1_PKTPEND;
-			System.dcc_flags &= ~DCC_DCC1_TXDONE;
-		}
-		if ((System.dcc_flags & DCC_DCC1_TXDONE) == DCC_DCC1_TXDONE)
-		{
-			set_trig(0);
-			if ((System.system & SYSTEM_DCC1_HPACKET) == SYSTEM_DCC1_HPACKET)
-			{
-				System.system &= ~SYSTEM_DCC1_HPACKET;
-				memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Idle_Pkt,DCC_PACKET_LEN);
-			}
-			if ((System.system & SYSTEM_DCC1_FPACKET) == SYSTEM_DCC1_FPACKET)
-			{
-				System.system &= ~SYSTEM_DCC1_FPACKET;
-				memcpy(&System.dcc_ch1_packet,&DCC_Idle_Pkt,DCC_PACKET_LEN);
-			}
-			System.dcc_flags &= ~DCC_DCC1_TXDONE;
-		}
-	}
-
+	dcc_process();
 }

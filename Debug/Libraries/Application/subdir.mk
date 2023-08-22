@@ -7,16 +7,19 @@
 C_SRCS += \
 ../Libraries/Application/dcc_main.c \
 ../Libraries/Application/dcc_parser.c \
+../Libraries/Application/dcc_timpwm_functions.c \
 ../Libraries/Application/lcd.c 
 
 OBJS += \
 ./Libraries/Application/dcc_main.o \
 ./Libraries/Application/dcc_parser.o \
+./Libraries/Application/dcc_timpwm_functions.o \
 ./Libraries/Application/lcd.o 
 
 C_DEPS += \
 ./Libraries/Application/dcc_main.d \
 ./Libraries/Application/dcc_parser.d \
+./Libraries/Application/dcc_timpwm_functions.d \
 ./Libraries/Application/lcd.d 
 
 
@@ -27,7 +30,7 @@ Libraries/Application/%.o Libraries/Application/%.su Libraries/Application/%.cyc
 clean: clean-Libraries-2f-Application
 
 clean-Libraries-2f-Application:
-	-$(RM) ./Libraries/Application/dcc_main.cyclo ./Libraries/Application/dcc_main.d ./Libraries/Application/dcc_main.o ./Libraries/Application/dcc_main.su ./Libraries/Application/dcc_parser.cyclo ./Libraries/Application/dcc_parser.d ./Libraries/Application/dcc_parser.o ./Libraries/Application/dcc_parser.su ./Libraries/Application/lcd.cyclo ./Libraries/Application/lcd.d ./Libraries/Application/lcd.o ./Libraries/Application/lcd.su
+	-$(RM) ./Libraries/Application/dcc_main.cyclo ./Libraries/Application/dcc_main.d ./Libraries/Application/dcc_main.o ./Libraries/Application/dcc_main.su ./Libraries/Application/dcc_parser.cyclo ./Libraries/Application/dcc_parser.d ./Libraries/Application/dcc_parser.o ./Libraries/Application/dcc_parser.su ./Libraries/Application/dcc_timpwm_functions.cyclo ./Libraries/Application/dcc_timpwm_functions.d ./Libraries/Application/dcc_timpwm_functions.o ./Libraries/Application/dcc_timpwm_functions.su ./Libraries/Application/lcd.cyclo ./Libraries/Application/lcd.d ./Libraries/Application/lcd.o ./Libraries/Application/lcd.su
 
 .PHONY: clean-Libraries-2f-Application
 

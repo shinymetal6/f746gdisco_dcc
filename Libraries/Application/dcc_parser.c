@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-void encode_byte(uint32_t *dest , uint8_t value)
+void encode_byte(uint16_t *dest , uint8_t value)
 {
 uint8_t i,mask=0x80;
 	for ( i=0;i<8;i++)
@@ -31,17 +31,18 @@ uint8_t ecc,data;
 	if ( direction == 'F')
 		data |= 0x20;
 	ecc = address ^ data;
-	encode_byte((uint32_t *)&DCC_Work_Pkt.address,address);
-	encode_byte((uint32_t *)&DCC_Work_Pkt.data,speed);
-	encode_byte((uint32_t *)&DCC_Work_Pkt.ecc,ecc);
+	encode_byte((uint16_t *)&DCC_Work_Pkt.address,address);
+	encode_byte((uint16_t *)&DCC_Work_Pkt.data,speed);
+	encode_byte((uint16_t *)&DCC_Work_Pkt.ecc,ecc);
 }
 
 void compile_reset_packet(void)
 {
 	memcpy(&DCC_Work_Pkt,&DCC_Reset_Pkt,sizeof(DCC_Work_Pkt));
+	System.dcc_flags |= DCC_DCC1_PKTPEND;
+	System.dcc_flags |= DCC_DCC2_PKTPEND;
 }
 
-/* <f 1234 5678 9012> */
 uint8_t one_byte_commands(char cmd)
 {
 uint8_t	ret_val = 0;
@@ -83,48 +84,74 @@ uint8_t	ret_val = 0;
 					else
 						strcat((char *)System.uart1_txbuf,"Track1 OFF\n\r");
 					break;
-	default:	sprintf((char *)System.uart1_txbuf,"Command error\n\r");
-				ret_val = 1;
+	default:		ret_val = 255;
 	}
 	return ret_val;
 }
 
-uint8_t four_bytes_commands(char cmd,int p0,int p1,char dir)
+uint8_t four_bytes_commands(char cmd,int p0,int p1,int p2,char dir)
 {
 uint8_t	ret_val = 0;
 
 	switch ( cmd)
 	{
-	case 'T' 	: 	sprintf((char *)System.uart1_txbuf,"T : Address %d , Speed %d , Direction %c\n\r",p0,p1,dir);
-					compile_command_packet(p0,p1,dir);
+	case 'A' 	:	if (( p0 == 1 ) || (p0 == 2 ))
+					{
+						sprintf((char *)System.uart1_txbuf,"Track %d , Address %d , Speed %d , Direction %c\n\r",p0,p1,p2,dir);
+						compile_command_packet(p1,p2,dir);
+						ret_val = p0-1;
+					}
+					else
+					{
+						ret_val = 255;
+					}
 					break;
-	default:	sprintf((char *)System.uart1_txbuf,"Command error\n\r");
-				ret_val = 1;
+	default:		ret_val = 255;
 	}
 	return ret_val;
 }
 
 uint8_t dcc_parser(void)
 {
-int	p0,p1,pnum;
-char cmd,dir;
+int	p0,p1,p2,pnum,cmdlen;
+char track,cmd,speed,dirflag,dir;
 uint8_t	ret_val = 0;
 
-	pnum = sscanf((char *)System.uart1_rxbuf,"%c %d %d %c",&cmd,&p0,&p1,&dir);
+	cmdlen = strlen((char * )System.uart1_rxbuf);
+	pnum = sscanf((char *)System.uart1_rxbuf,"%c %d %c %d %c %d %c %c",&track,&p0,&cmd,&p1,&speed,&p2,&dirflag,&dir);
 	switch (pnum)
 	{
-	case 1 :	ret_val = one_byte_commands(cmd);
+	case 1 :	ret_val = one_byte_commands(track);
 				break;
-	case 4 :	ret_val = four_bytes_commands(cmd,p0,p1,dir); // <T 95 12 F>
+	case 8 :	ret_val = four_bytes_commands(cmd,p0,p1,p2,dir); // <T 1 A 55 S 12 D F>   <T 2 A 1 S 12 D F>
 				break;
-	default:	sprintf((char *)System.uart1_txbuf,"Command error %d\n\r",pnum);
-				ret_val = 1;
+	default:	ret_val = 255;// <T 4 A 1 S 12 D F>
 	}
-	if ( ret_val == 0 )
+	if ( ret_val == 255 )
 	{
-		System.dcc_flags |= DCC_DCC1_PKTPEND;
-		System.dcc_flags |= DCC_DCC2_PKTPEND;
+		sprintf((char *)System.uart1_txbuf,"Command error %d\n\r",pnum);
 	}
+	else
+	{
+		if (pnum != 1 )	// single bytes commands has no modulation excluding reset
+		{
+			if ( ret_val == 0 )
+			{
+				if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER )
+					System.dcc_flags |= DCC_DCC1_PKTPEND;
+				else
+					sprintf((char *)System.uart1_txbuf,"Track %d is off\n\r",ret_val);
+			}
+			if ( ret_val == 1 )
+			{
+				if ((System.dcc_flags & DCC_DCC2_POWER) == DCC_DCC2_POWER )
+					System.dcc_flags |= DCC_DCC2_PKTPEND;
+				else
+					sprintf((char *)System.uart1_txbuf,"Track %d is off\n\r",ret_val);
+			}
+		}
+	}
+	bzero(System.uart1_rxbuf,cmdlen);
 	System.uart1_txlen = strlen((char *)System.uart1_txbuf);
 	return ret_val;
 }
