@@ -78,9 +78,9 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
-						<entry excluding="BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Libraries"/>
+						<entry excluding="BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry excluding="Application/dcc_parser_OLD.c|BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Libraries"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -155,9 +155,9 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
-						<entry excluding="BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Libraries"/>
+						<entry excluding="BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry excluding="Application/dcc_parser_OLD.c|BSP/Fonts/font8.c|BSP/Fonts/font24.c|BSP/Fonts/font20.c|BSP/Fonts/font16.c|BSP/Fonts/font12.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Libraries"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

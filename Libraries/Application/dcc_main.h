@@ -45,13 +45,17 @@ extern	SDRAM_HandleTypeDef hsdram1;
 #define	DCC_ADDRESS_LEN			8
 #define	DCC_DATA_LEN			8
 #define	DCC_ECC_LEN				8
-#define	DCC_PKT_LEN				(DCC_PREAMBLE_LEN+1+DCC_ADDRESS_LEN+1+DCC_DATA_LEN+1+DCC_ECC_LEN+1)
+#define	DCC_FILL_LEN				8
+#define	DCC_PACKET_LEN			(DCC_PREAMBLE_LEN+1+DCC_ADDRESS_LEN+1+DCC_DATA_LEN+1+DCC_ECC_LEN+1+DCC_FILL_LEN+1)
 #define	PULSE100uS				99
 #define	PULSE58uS				57
-#define	PULSE200uS				200
+#define	PULSE200uS				199
+#define	PULSE400uS				399
 #define	DCC_0					PULSE100uS
 #define	DCC_1					PULSE58uS
-#define	DCC_TERM				PULSE200uS
+#define	DCC_TERM				PULSE400uS
+// DCC_SEPARATOR should be DCC_0
+#define	DCC_SEPARATOR			DCC_0
 
 typedef struct {
 	uint16_t		preamble[16];
@@ -61,13 +65,13 @@ typedef struct {
 	uint16_t		data[8];
 	uint16_t		separator2;
 	uint16_t		ecc[8];
-	uint16_t		endpacket;
+	uint16_t		endpacket_short;
+	uint16_t		fill[8];
+	uint16_t		endpacket_long;
 }DCC_Pkt_TypeDef;
 extern	DCC_Pkt_TypeDef	DCC_Idle_Pkt;
-extern	DCC_Pkt_TypeDef	DCC_Reset_Pkt;
 extern	DCC_Pkt_TypeDef	DCC_Work_Pkt;
 
-#define	DCC_PACKET_LEN		(DCC_PREAMBLE_LEN+1+DCC_ADDRESS_LEN+1+DCC_DATA_LEN+1+DCC_ECC_LEN+1)
 #define	NUM_DCC_PACKET		2
 
 typedef struct {
@@ -116,6 +120,10 @@ extern	System_TypeDef	System;
 #define	DCC_DCC2_PKTPEND		0x04
 #define	DCC_DCC1_TXDONE			0x02
 #define	DCC_DCC2_TXDONE			0x01
+
+/* errors definition */
+#define	PARAMETER_ERROR			"#0001"
+#define	TRACK_NOT_POWERED_ERROR	"#0002"
 
 extern	void dcc_init(void);
 extern	void dcc_loop(void);

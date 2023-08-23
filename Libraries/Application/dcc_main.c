@@ -20,40 +20,23 @@ DCC_Pkt_TypeDef	DCC_Idle_Pkt =
 			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,
 			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1
 	},
-	.separator0 = DCC_0,
+	.separator0 = DCC_SEPARATOR,
 	.address = {
 			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1
 	},
-	.separator1 = DCC_0,
+	.separator1 = DCC_SEPARATOR,
 	.data = {
 			DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0
 	},
-	.separator2 = DCC_0,
+	.separator2 = DCC_SEPARATOR,
 	.ecc = {
 			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1
 	},
-	.endpacket = DCC_1,
-};
-
-DCC_Pkt_TypeDef	DCC_Reset_Pkt =
-{
-	.preamble = {
-			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,
+	.endpacket_short = DCC_SEPARATOR,
+	.fill = {
 			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1
 	},
-	.separator0 = DCC_0,
-	.address = {
-			DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0
-	},
-	.separator1 = DCC_0,
-	.data = {
-			DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0
-	},
-	.separator2 = DCC_0,
-	.ecc = {
-			DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0
-	},
-	.endpacket = DCC_1,
+	.endpacket_long = DCC_TERM
 };
 
 DCC_Pkt_TypeDef	DCC_Work_Pkt =
@@ -62,21 +45,24 @@ DCC_Pkt_TypeDef	DCC_Work_Pkt =
 			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,
 			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1
 	},
-	.separator0 = DCC_0,
+	.separator0 = DCC_SEPARATOR,
 	.address = {
 			DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0
 	},
-	.separator1 = DCC_0,
+	.separator1 = DCC_SEPARATOR,
 	.data = {
 			DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0
 	},
-	.separator2 = DCC_0,
+	.separator2 = DCC_SEPARATOR,
 	.ecc = {
 			DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0,DCC_0
 	},
-	.endpacket = DCC_TERM,
+	.endpacket_short = DCC_SEPARATOR,
+	.fill = {
+			DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1,DCC_1
+	},
+	.endpacket_long = DCC_TERM
 };
-
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -147,17 +133,7 @@ void init_dcc_pkt(void)
 	memcpy(&System.dcc_ch1_packet,&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
 	memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
 }
-/*
- * change
- * 		if (HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_CC1], (uint32_t)pData, (uint32_t)&htim->Instance->CCR1,Length) != HAL_OK)
- * to
- *		if (HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_CC1], (uint32_t)pData, (uint32_t)&htim->Instance->PSC,Length) != HAL_OK)
- * in
- * 		HAL_TIM_PWM_Start_DMA , stm32f7xx_hal_tim.c, line 1766
- * or
- * 		use provided dcc_HAL_TIM_PWM_Start_DMA
- *
- */
+
 void dcc_init(void)
 {
 	DBGMCU->APB1FZ = 0xFFFFFFFF;
@@ -168,8 +144,12 @@ void dcc_init(void)
 	HAL_UART_Receive_IT(&DCC_HOST, &System.uart1_rxchar, 1);
 	init_dcc_pkt();
 	System.dcc_ch1_repeat_cnt = System.dcc_ch1_repeat_number = 1;
-	dcc_HAL_TIM_PWM_Start_DMA(&DCC_CH1,TIM_CHANNEL_1,(uint32_t *)System.dcc_ch1_packet,DCC_PKT_LEN*NUM_DCC_PACKET );
+	dcc_HAL_TIM_PWM_Start_DMA(&DCC_CH1,TIM_CHANNEL_1,(uint32_t *)System.dcc_ch1_packet,DCC_PACKET_LEN*NUM_DCC_PACKET );
 	BSP_LED_Init(LED_GREEN);
+	sprintf((char *)System.uart1_txbuf,"DCC Controller 1.0\n\r");
+	System.uart1_txlen = strlen((char *)System.uart1_txbuf);
+	HAL_UART_Transmit_IT(&DCC_HOST, System.uart1_txbuf, System.uart1_txlen);
+	HAL_Delay(20);
 }
 
 void dcc_process(void)

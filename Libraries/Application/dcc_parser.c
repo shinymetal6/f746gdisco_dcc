@@ -24,33 +24,16 @@ uint8_t i,mask=0x80;
 	}
 }
 
-void compile_command_packet(uint8_t track,uint8_t address, uint8_t speed , char direction)
+uint8_t compile_reset_packet(void)
 {
-uint8_t ecc,data;
-	data = 0x40 | speed;
-	if ( direction == 'F')
-		data |= 0x20;
-	ecc = address ^ data;
-	encode_byte((uint16_t *)&DCC_Work_Pkt.address,address);
-	encode_byte((uint16_t *)&DCC_Work_Pkt.data,speed);
-	encode_byte((uint16_t *)&DCC_Work_Pkt.ecc,ecc);
-	if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER )
-	{
-		if ( track == 1 )
-			System.dcc_flags |= DCC_DCC1_PKTPEND;
-	}
-	if ((System.dcc_flags & DCC_DCC2_POWER) == DCC_DCC2_POWER )
-	{
-		if ( track == 2 )
-			System.dcc_flags |= DCC_DCC2_PKTPEND;
-	}
-}
-
-void compile_reset_packet(void)
-{
-	memcpy(&DCC_Work_Pkt,&DCC_Reset_Pkt,sizeof(DCC_Work_Pkt));
+	if ( ((System.dcc_flags & DCC_DCC1_POWER) == 0 ) && ((System.dcc_flags & DCC_DCC2_POWER) == 0 ))
+			return 1;
+	encode_byte((uint16_t *)&DCC_Work_Pkt.address,0);
+	encode_byte((uint16_t *)&DCC_Work_Pkt.data,0);
+	encode_byte((uint16_t *)&DCC_Work_Pkt.ecc,0);
 	System.dcc_flags |= DCC_DCC1_PKTPEND;
 	System.dcc_flags |= DCC_DCC2_PKTPEND;
+	return 0;
 }
 
 uint8_t	temp_string[DCC_HOST_MAX_LEN];
@@ -81,10 +64,16 @@ uint8_t	ret_val = 0;
 					System.dcc_flags |= DCC_DCC1_POWER;
 					System.dcc_flags |= DCC_DCC2_POWER;
 					break;
-	case 'R' 	: 	sprintf((char *)System.uart1_txbuf,"Sent RESET\n\r");
-					System.dcc_flags |= DCC_DCC1_RESET;
-					System.dcc_flags |= DCC_DCC2_RESET;
-					compile_reset_packet();
+	case 'R' 	: 	ret_val = compile_reset_packet();
+					if ( ret_val )
+						sprintf((char *)System.uart1_txbuf,"RESET failed, no powered track found\n\r");
+					else
+					{
+						sprintf((char *)System.uart1_txbuf,"Sent RESET\n\r");
+						System.dcc_flags |= DCC_DCC1_RESET;
+						System.dcc_flags |= DCC_DCC2_RESET;
+					}
+					ret_val = 0;
 					break;
 	case 'S' 	: 	sprintf((char *)System.uart1_txbuf,"Status\n\r");
 					if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER)
@@ -98,83 +87,91 @@ uint8_t	ret_val = 0;
 					sprintf((char *)temp_string,"Repetition ch1 %d ch2 %d\n\r",System.dcc_ch1_repeat_number+1,System.dcc_ch2_repeat_number+1);
 					strcat((char *)System.uart1_txbuf,(char *)temp_string);
 					break;
-	default:		ret_val = 255;
+	default:		ret_val = 1;
 	}
 	return ret_val;
 }
 
-uint8_t four_bytes_commands(char cmd,int p0,int p1,int p2,char dir)
+uint8_t two_bytes_commands(char cmd,int track,int address,int data)
 {
-uint8_t	ret_val = 255;
-
-	switch ( cmd)
+uint8_t ecc;
+	if ( cmd == 'T' )
 	{
-	case 'A' 	:	if (( p0 == 1 ) || (p0 == 2 ))
-					{
-						sprintf((char *)System.uart1_txbuf,"Track %d , Address %d , Speed %d , Direction %c\n\r",p0,p1,p2,dir);
-						compile_command_packet(p0,p1,p2,dir);
-						ret_val = 0;
-					}
-					break;
-	default:		break;
+		ecc = address ^ data;
+		encode_byte((uint16_t *)&DCC_Work_Pkt.address,address);
+		encode_byte((uint16_t *)&DCC_Work_Pkt.data,data);
+		encode_byte((uint16_t *)&DCC_Work_Pkt.ecc,ecc);
+		encode_byte((uint16_t *)&DCC_Work_Pkt.fill,0xff);
+
+		if ( track == 1 )
+		{
+			if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER )
+				System.dcc_flags |= DCC_DCC1_PKTPEND;
+		}
+		if ( track == 2 )
+		{
+			if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER )
+				System.dcc_flags |= DCC_DCC2_PKTPEND;
+		}
+		if ( ((System.dcc_flags & DCC_DCC1_PKTPEND) == DCC_DCC1_PKTPEND ) || ((System.dcc_flags & DCC_DCC2_PKTPEND) == DCC_DCC2_PKTPEND ) )
+			sprintf((char *)System.uart1_txbuf,"track %d address %d data %d\n\r",track,address,data);
+		else
+			sprintf((char *)System.uart1_txbuf,"%s Command failed, track %d is off\n\r",TRACK_NOT_POWERED_ERROR,track);
+		return 0;
 	}
-	return ret_val;
+	return 1;
 }
 
-uint8_t three_bytes_commands(char cmd,int p0,int p1,int p2)
+uint8_t three_bytes_commands(char cmd,int track,int address,int datal,int datah)
 {
-uint8_t	ret_val = 255;
-
-	switch ( cmd)
+uint8_t ecc;
+	if ( cmd == 'T' )
 	{
-	case 'I' 	:	if ( p1 == 0 )
-					{
-						sprintf((char *)System.uart1_txbuf,"Track %d , Repetition %d\n\r",p0,p2);
-						if ( p2 > 1)
-							System.dcc_ch1_repeat_cnt = System.dcc_ch1_repeat_number = p2-1;
-						else
-							System.dcc_ch1_repeat_cnt = System.dcc_ch1_repeat_number = 0;
-						ret_val = 0;
-					}
-					break;
-	default:		break;
+		ecc = address ^ datal ^ datah;
+		encode_byte((uint16_t *)&DCC_Work_Pkt.address,address);
+		encode_byte((uint16_t *)&DCC_Work_Pkt.data,datal);
+		encode_byte((uint16_t *)&DCC_Work_Pkt.ecc,datah);
+		encode_byte((uint16_t *)&DCC_Work_Pkt.fill,ecc);
+		if ( track == 1 )
+		{
+			if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER )
+				System.dcc_flags |= DCC_DCC1_PKTPEND;
+		}
+		if ( track == 2 )
+		{
+			if ((System.dcc_flags & DCC_DCC1_POWER) == DCC_DCC1_POWER )
+				System.dcc_flags |= DCC_DCC2_PKTPEND;
+		}
+		if ( ((System.dcc_flags & DCC_DCC1_PKTPEND) == DCC_DCC1_PKTPEND ) || ((System.dcc_flags & DCC_DCC2_PKTPEND) == DCC_DCC2_PKTPEND ) )
+			sprintf((char *)System.uart1_txbuf,"track %d address %d datal %d datah %d\n\r",track,address,datal,datah);
+		else
+			sprintf((char *)System.uart1_txbuf,"%s Command failed, track %d is off\n\r",TRACK_NOT_POWERED_ERROR,track);
+		return 0;
 	}
-	return ret_val;
+	return 1;
 }
-/*
- * Message format
- * train control , 4 bytes command
- * <T [track number] A [train address] S [speed] D [F|R]>
- * function control , 3 bytes command
- * <T [track number] F [function group1 | function group2 | feature expansion] D [data]>
- * configuration variable control , 3 bytes command
- * <T [track number] C [function group1 | function group2 | feature expansion] D [data]>
- * internal settings , 3 bytes command
- * <T [track number] I [0..9] D [data]>
- * I valid:
- * 	0	repetition counter
- */
+
 uint8_t dcc_parser(void)
 {
-int	p0,p1,p2,pnum,cmdlen;
-char track,cmd,subcmd,dirflag,dir;
-uint8_t	ret_val = 0;
+int	p0,p1,p2,p3,p4,pnum,cmdlen;
+char cmd;
+uint8_t	ret_val = 1;
 
 	cmdlen = strlen((char * )System.uart1_rxbuf);
-	pnum = sscanf((char *)System.uart1_rxbuf,"%c %d %c %d %c %d %c %c",&track,&p0,&cmd,&p1,&subcmd,&p2,&dirflag,&dir);
+	pnum = sscanf((char *)System.uart1_rxbuf,"%c %d %d %d %d %d",&cmd,&p0,&p1,&p2,&p3,&p4);
 	switch (pnum)
 	{
-	case 1 :	ret_val = one_byte_commands(track);
+	case 1 :	ret_val = one_byte_commands(cmd);
 				break;
-	case 6 :	ret_val = three_bytes_commands(cmd,p0,p1,p2); // <T 1 I 0 D 3>
+	case 4 :	ret_val = two_bytes_commands(cmd,p0,p1,p2); // <T 1 12 33>
 				break;
-	case 8 :	ret_val = four_bytes_commands(cmd,p0,p1,p2,dir); // <T 1 A 55 S 12 D F>   <T 2 A 1 S 12 D F>
+	case 5 :	ret_val = three_bytes_commands(cmd,p0,p1,p2,p3); // <T 1 12 33 55>
 				break;
-	default:	ret_val = 255;// <T 4 A 1 S 12 D F>
+	default:	break;// <D 1 12 33 55>
 	}
 
-	if ( ret_val == 255 )
-		sprintf((char *)System.uart1_txbuf,"Command error %d\n\r",pnum);
+	if ( ret_val  )
+		sprintf((char *)System.uart1_txbuf,"%s Command error %d params string # %s #\n\r",PARAMETER_ERROR,pnum,(char *)System.uart1_rxbuf);
 
 	bzero(System.uart1_rxbuf,cmdlen);
 	System.uart1_txlen = strlen((char *)System.uart1_txbuf);
