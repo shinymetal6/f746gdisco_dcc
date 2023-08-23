@@ -85,6 +85,10 @@ typedef struct {
 	uint8_t			dcc_ch1_packet_index;
 	uint16_t		dcc_ch2_packet[DCC_PACKET_LEN*NUM_DCC_PACKET];
 	uint8_t			dcc_ch2_packet_index;
+	uint8_t			dcc_ch1_repeat_cnt;
+	uint8_t			dcc_ch1_repeat_number;
+	uint8_t			dcc_ch2_repeat_cnt;
+	uint8_t			dcc_ch2_repeat_number;
 }System_TypeDef;
 extern	System_TypeDef	System;
 

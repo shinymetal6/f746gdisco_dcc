@@ -167,7 +167,7 @@ void dcc_init(void)
 	HAL_TIM_Base_Start_IT(&TICK_TIMER);
 	HAL_UART_Receive_IT(&DCC_HOST, &System.uart1_rxchar, 1);
 	init_dcc_pkt();
-
+	System.dcc_ch1_repeat_cnt = System.dcc_ch1_repeat_number = 1;
 	dcc_HAL_TIM_PWM_Start_DMA(&DCC_CH1,TIM_CHANNEL_1,(uint32_t *)System.dcc_ch1_packet,DCC_PKT_LEN*NUM_DCC_PACKET );
 	BSP_LED_Init(LED_GREEN);
 }
@@ -204,17 +204,27 @@ void dcc_process(void)
 	}
 	if ((System.dcc_flags & DCC_DCC1_TXDONE) == DCC_DCC1_TXDONE)
 	{
-		if ((System.system & SYSTEM_DCC1_HPACKET) == SYSTEM_DCC1_HPACKET)
+		if ( System.dcc_ch1_repeat_cnt == 0 )
 		{
-			memcpy(&System.dcc_ch1_packet,&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
-			System.system &= ~SYSTEM_DCC1_HPACKET;
+			if ((System.system & SYSTEM_DCC1_HPACKET) == SYSTEM_DCC1_HPACKET)
+			{
+				memcpy(&System.dcc_ch1_packet,&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
+				System.system &= ~SYSTEM_DCC1_HPACKET;
+			}
+			if ((System.system & SYSTEM_DCC1_FPACKET) == SYSTEM_DCC1_FPACKET)
+			{
+				memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
+				System.system &= ~SYSTEM_DCC1_FPACKET;
+			}
+			System.dcc_ch1_repeat_cnt = System.dcc_ch1_repeat_number;
+			System.dcc_flags &= ~DCC_DCC1_PKTPEND;
+			set_trig(0);
 		}
-		if ((System.system & SYSTEM_DCC1_FPACKET) == SYSTEM_DCC1_FPACKET)
+		else
 		{
-			memcpy(&System.dcc_ch1_packet[DCC_PACKET_LEN],&DCC_Idle_Pkt,DCC_PACKET_LEN*2);
-			System.system &= ~SYSTEM_DCC1_FPACKET;
+			System.dcc_ch1_repeat_cnt--;
+			System.dcc_flags |= DCC_DCC1_PKTPEND;
 		}
-		set_trig(0);
 		System.dcc_flags &= ~DCC_DCC1_TXDONE;
 	}
 }
